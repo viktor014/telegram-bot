@@ -4,7 +4,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from keyboards.keyboards import base_kb, conf_kb
+from keyboards.keyboards import base_kb, conf_kb, modify_kb
 from bot3 import Form
 from typing import Any, Dict
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
@@ -21,14 +21,106 @@ import sqlite3
 router = Router()
 bot = Bot(token=config.bot_token.get_secret_value(), parse_mode=ParseMode.HTML)
 
+editable_fields_conf = ["название", "дата", "место", "стоимость", "описание", "изображение"]
 
 @router.message(F.text == "🧬 Конференции")
 @router.message(F.text.casefold() == "конференции")
 async def process_conference(message: Message, state: FSMContext) -> None:
+    # # Устанавливаем соединение с базой данных
+    # connection = sqlite3.connect('new.db')
+    # cursor = connection.cursor()
+    #
+    # # Добавляем нового пользователя
+    # cursor.execute('INSERT INTO Users (username, email, age) VALUES (?, ?, ?)', ('newuser', 'newuser@example.com', 28))
+    #
+    # # Сохраняем изменения и закрываем соединение
+    # connection.commit()
+    # connection.close()
     # await state.set_state(Form.confST)
     await message.answer(
         "Выберите действие:",
         reply_markup=conf_kb()
+    )
+
+
+@router.message(F.text.casefold() == "изменить конференцию")
+async def change_conference(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.changeST)
+    await message.reply(
+        "Введите ID- конференции",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+
+@router.message(Form.changeST)
+async def process_conf_name(message: Message, state: FSMContext) -> None:
+    # Устанавливаем соединение с базой данных
+    connection = sqlite3.connect('new.db')
+    cursor = connection.cursor()
+
+    cursor.execute('SELECT COUNT(*) FROM Conference')
+    b = cursor.fetchone()
+
+    # Сохраняем изменения и закрываем соединение
+    connection.commit()
+    connection.close()
+    if message.text.isdigit():
+        if int(message.text) <= b[0]:
+            await state.set_state(Form.confST)
+            await state.update_data(id_change_conf=message.text)
+            await state.set_state(Form.changeST2)
+            await message.answer('Укажите поле, которое необходимо отредактировать (Название, дата, место, стоимость, описание, или изображение: ',
+                                 reply_markup=ReplyKeyboardRemove(),
+                                 )
+        else:
+            await message.answer(f'Укажите значение ID конференции в диапазоне от 1 до {b[0]} ')
+    else:
+        await message.answer('Введите число цифрами')
+@router.message(Form.changeST2, F.text.casefold().in_(editable_fields_conf))
+async def edit_conf(message: Message, state: FSMContext) -> None:
+    if message.text.casefold() == 'название':
+        await state.update_data(param_change_conf=2)
+        await message.answer('Укажите новое название конференции: ',
+                             reply_markup=ReplyKeyboardRemove(),
+                             )
+    elif message.text.casefold() == 'дата':
+        await state.update_data(param_change_conf=3)
+        await message.answer('Укажите новые даты проведения конференции: ',
+                             reply_markup=ReplyKeyboardRemove(),
+                             )
+    elif message.text.casefold() == 'место':
+        await state.update_data(param_change_conf=4)
+        await message.answer('Укажите новое место проведения конференции: ',
+                             reply_markup=ReplyKeyboardRemove(),
+                             )
+    elif message.text.casefold() == 'стоимость':
+        await state.update_data(param_change_conf=5)
+        await message.answer('Укажите новое значение стоимости участия в конференции: ',
+                             reply_markup=ReplyKeyboardRemove(),
+                             )
+    elif message.text.casefold() == 'описание':
+        await state.update_data(param_change_conf=6)
+        await message.answer('Укажите новое описание конференции ',
+                             reply_markup=ReplyKeyboardRemove(),
+                             )
+    elif message.text.casefold()== 'изображение':
+        await state.update_data(param_change_conf=7)
+        await message.answer('Добавьте новое изображение для конференции: ',
+                         reply_markup=ReplyKeyboardRemove(),
+                         )
+    await state.set_state(Form.changeST3)
+
+@router.message(Form.changeST2)
+async def edit_conf2(message: Message):
+    await message.answer(
+        text="Редактируемое поле записи конференции не распознано. Введите: название, дата, место, стоимость, описание, изображение"
+    )
+
+@router.message(Form.changeST3)
+async def edit_conf3(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await message.answer(
+        text=f"Вы хотите отредактировать конференцию с ID {data['id_change_conf']} и полем {data['param_change_conf'] } и внести значение {message.text}"
     )
 
 
@@ -37,11 +129,12 @@ async def read_conference(message: Message, state: FSMContext) -> None:
     await state.clear()
     conn = sqlite3.connect('new.db')
     cur = conn.cursor()
-    cur.execute('SELECT * FROM conference')
+    cur.execute('SELECT * FROM Conference')
     a = cur.fetchall()
     info = ''
     for i in a:
-        info += f'\nНазвание конференции: {i[2]}\n' \
+        info += f'\nID конференции: {i[0]}\n' \
+                f'Название конференции: {i[2]}\n' \
                 f'Даты конференции: {i[3]}\n' \
                 f'Место проведения конференции: {i[4]}\n' \
                 f'Стоимость участия в конференции: {i[5]}\n' \
@@ -49,7 +142,7 @@ async def read_conference(message: Message, state: FSMContext) -> None:
                 f'Изображение конференции: {i[7]}\n\n'
     cur.close()
     conn.close()
-    await message.answer(info, reply_markup=base_kb())
+    await message.answer(info, reply_markup=modify_kb())
 
 
 @router.message(F.text.casefold() == "добавить конференцию")
@@ -157,7 +250,7 @@ async def add_bd_conf(data: Dict[str, Any]) -> None:
     conn = sqlite3.connect('new.db')
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO conference (id_user_conf, name_conf, date_conf,location_conf, price_conf, description_conf, pic_conf)"
+        "INSERT INTO Conference (id_user_conf, name_conf, date_conf,location_conf, price_conf, description_conf, pic_conf)"
         "VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (
             id_user, name_conf, date_conf, location_conf, price_conf,
             description_conf, pic_conf))

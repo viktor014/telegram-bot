@@ -30,6 +30,9 @@ form_router = Router()
 # Список состояний,которые будем обрабатывать. Ожидание ввода имени, ожидание ввода языка программирования и тд
 class Form(StatesGroup):
     menuST = State()
+    changeST = State()
+    changeST2 = State()
+    changeST3 = State()
     # Состояния заполнения конференции
     confST = State()
     name_confST = State()
@@ -39,7 +42,7 @@ class Form(StatesGroup):
     description_confST = State()
     pic_confST = State()
 
-
+@form_router.message(Command("start"))
 @form_router.message(CommandStart())
 @form_router.message(F.text.casefold() == "меню")
 async def command_start(message: Message, state: FSMContext) -> None:
@@ -47,10 +50,26 @@ async def command_start(message: Message, state: FSMContext) -> None:
     # Подключение к бд и создание таблиц
     conn = sqlite3.connect('new.db')
     cur = conn.cursor()
-    cur.execute('CREATE TABLE IF NOT EXISTS conference (id_conf int primary key,'
-                'id_user_conf int, name_conf varchar(100), date_conf varchar(50),'
-                'location_conf varchar(50), price_conf varchar(50), description_conf varchar(255),'
-                'pic_conf varchar(255) )')
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS Conference (
+    id INTEGER PRIMARY KEY,
+    id_user_conf INTEGER, 
+    name_conf TEXT NOT NULL, 
+    date_conf TEXT NOT NULL,
+    location_conf TEXT,
+    price_conf TEXT,
+    description_conf TEXT,
+    pic_conf TEXT 
+    )
+                ''')
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS Users (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL,
+    age INTEGER
+    )
+    ''')
     conn.commit()
     cur.close()
     conn.close()
@@ -60,12 +79,6 @@ async def command_start(message: Message, state: FSMContext) -> None:
         "Выберите действие:",
         reply_markup=base_kb()
     )
-
-
-# Хэндлер на гифку
-@form_router.message(F.animation)
-async def echo_gif(message: types.Message):
-    await message.answer_animation(message.animation.file_id)
 
 
 # Разрешить подьзователю отменить любое действие
