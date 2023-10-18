@@ -134,12 +134,12 @@ async def read_conference(message: Message, state: FSMContext) -> None:
     info = ''
     for i in a:
         info += f'\nID конференции: {i[0]}\n' \
-                f'Название конференции: {i[2]}\n' \
-                f'Даты конференции: {i[3]}\n' \
-                f'Место проведения конференции: {i[4]}\n' \
-                f'Стоимость участия в конференции: {i[5]}\n' \
-                f'Описание конференции: {i[6]}\n' \
-                f'Изображение конференции: {i[7]}\n\n'
+                f'Название конференции: {i[3]}\n' \
+                f'Даты конференции: {i[4]}\n' \
+                f'Место проведения конференции: {i[5]}\n' \
+                f'Стоимость участия в конференции: {i[6]}\n' \
+                f'Описание конференции: {i[7]}\n' \
+                f'Изображение конференции: {i[8]}\n\n'
     cur.close()
     conn.close()
     await message.answer(info, reply_markup=modify_kb())
@@ -222,13 +222,17 @@ async def process_publ(message: Message, data: Dict[str, Any]) -> None:
 @router.callback_query(F.data == "send_conf")
 async def send_conf(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    await add_bd_conf(data=data)
-    await bot.send_message(-1001910687841, f'\nНазвание конференции: {data["name_conf"]}\n' \
+    msg = await bot.send_message(-1001910687841, f'\nНазвание конференции: {data["name_conf"]}\n' \
                                            f'Даты конференции: {data["date_conf"]}\n' \
                                            f'Место проведения конференции: {data["location_conf"]}\n' \
                                            f'Стоимость участия в конференции: {data["price_conf"]}\n' \
                                            f'Описание конференции: {data["description_conf"]}\n' \
+     
                                            f'Изображение конференции: {data["pic_conf"]}\n\n')
+    print(msg.message_id)
+
+    data = await state.update_data(msg_id=msg.message_id)
+    await add_bd_conf(data=data)
     await state.clear()
     await callback.answer(
         text='Конференция успешно добавлена!',
@@ -241,6 +245,7 @@ async def send_conf(callback: CallbackQuery, state: FSMContext):
 
 async def add_bd_conf(data: Dict[str, Any]) -> None:
     id_user = data["id_user"]
+    id_msg_conf = data["msg_id"]
     name_conf = data["name_conf"]
     date_conf = data["date_conf"]
     location_conf = data["location_conf"]
@@ -250,9 +255,9 @@ async def add_bd_conf(data: Dict[str, Any]) -> None:
     conn = sqlite3.connect('new.db')
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO Conference (id_user_conf, name_conf, date_conf,location_conf, price_conf, description_conf, pic_conf)"
-        "VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (
-            id_user, name_conf, date_conf, location_conf, price_conf,
+        "INSERT INTO Conference (id_user_conf, id_publ_msg, name_conf, date_conf,location_conf, price_conf, description_conf, pic_conf)"
+        "VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (
+            id_user, id_msg_conf, name_conf, date_conf, location_conf, price_conf,
             description_conf, pic_conf))
     conn.commit()
     cur.close()

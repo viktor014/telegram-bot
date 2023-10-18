@@ -9,6 +9,7 @@ from config_reader import config
 
 from aiogram import Bot, Dispatcher, F, Router, html
 from aiogram.enums import ParseMode
+from aiogram.methods import DeleteWebhook
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -53,7 +54,8 @@ async def command_start(message: Message, state: FSMContext) -> None:
     cur.execute('''
     CREATE TABLE IF NOT EXISTS Conference (
     id INTEGER PRIMARY KEY,
-    id_user_conf INTEGER, 
+    id_user_conf INTEGER,
+    id_publ_msg INTEGER, 
     name_conf TEXT NOT NULL, 
     date_conf TEXT NOT NULL,
     location_conf TEXT,
@@ -106,7 +108,7 @@ async def main():
     dp = Dispatcher()
     dp.include_router(form_router)
     dp.include_router(conference.router)
-
+    await bot(DeleteWebhook(drop_pending_updates=True))
     await dp.start_polling(bot)
 
 
